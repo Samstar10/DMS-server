@@ -16,5 +16,20 @@ class Document(db.Model, SerializerMixin):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), server_onupdate=db.func.now())
 
+    versions = db.relationship('Version', backref='document', lazy=True)
+
     def __repr__(self):
         return '<Document %r>' % self.file_name
+    
+class Version(db.Model, SerializerMixin):
+    __tablename__ = 'versions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False)
+    version_number = db.Column(db.Integer, nullable=False)
+    file_path = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), server_onupdate=db.func.now())
+
+    def __repr__(self):
+        return '<Version %r>' % self.version

@@ -9,7 +9,7 @@ from cloudinary.uploader import upload
 from werkzeug.datastructures import FileStorage
 
 from config import app, db, api
-from models import Document
+from models import Document, Version
 
 parser = reqparse.RequestParser()
 parser.add_argument('files', type=FileStorage, location='files', action='append')

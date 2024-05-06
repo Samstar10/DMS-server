@@ -33,3 +33,13 @@ class Version(db.Model, SerializerMixin):
 
     def __repr__(self):
         return '<Version %r>' % self.version
+    
+class Notification(db.Model, SerializerMixin):
+    __tablename__ = 'notifications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    message = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False)
+
+    document = db.relationship('Document', backref='notifications', lazy=True)

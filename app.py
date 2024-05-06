@@ -9,7 +9,7 @@ from cloudinary.uploader import upload
 from werkzeug.datastructures import FileStorage
 
 from config import app, db, api
-from models import Document, Version
+from models import Document, Version, Notification
 
 parser = reqparse.RequestParser()
 parser.add_argument('files', type=FileStorage, location='files', action='append')
@@ -135,12 +135,80 @@ class DocumentDelete(Resource):
             return {
                 'message': 'Document not found.'
             }, 404
+        
+class VersionHistory(Resource):
+    def get(self, document_id):
+        document = Document.query.get(document_id)
+
+        if not document:
+            return {
+                'message': 'Document not found.'
+            }, 404
+        
+        versions = Version.query.filter_by(document_id=document_id).all()
+        version_list = [{
+            'id': version.id,
+            'version_number': version.version_number,
+            'file_path': version.file_path,
+            'created_at': version.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'updated_at': version.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for version in versions]
+
+        return {
+            'message': 'Version history retrieved successfully.',
+            'data': version_list
+        }, 200
+    
+class RevertDocument(Resource):
+    def put(self, document_id, version_number):
+        document = Document.query.get(document_id)
+        version = Version.query.get(version_number)
+
+        if not document or not version:
+            return {
+                'message': 'Document or version not found.'
+            }, 404
+        
+        if version.document_id != document.id:
+            return {
+                'message': 'Version does not belong to the document.'
+            }, 404
+        
+        document.file_path = version.file_path
+        db.session.commit()
+
+        notification = Notification(
+            message= f'Document {document.file_name} reverted to version {version.version_number}.',
+            document_id= document.id
+        )
+
+        db.session.add(notification)
+        db.session.commit()
+
+        return {
+            'message': 'Document reverted successfully.',
+            'document_id': document.id,
+            'version_id': version.id,
+            'new_file_path': document.file_path
+        }, 200
+
+
+class DocumentNotification(Resource):
+    def get(self, document_id):
+        notifications = Notification.query.filter_by(document_id=document_id).all()
+        return [{
+            'message': notification.message,
+            'created_at': notification.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for notification in notifications]
 
 
 api.add_resource(FileUpload, '/upload')
 api.add_resource(DocumentSearch, '/search')
 api.add_resource(DocumentDownload, '/download/<int:document_id>')
 api.add_resource(DocumentDelete, '/delete/<int:document_id>')
+api.add_resource(VersionHistory, '/versions/<int:document_id>')
+api.add_resource(RevertDocument, '/revert/<int:document_id>/<int:version_number>')
+api.add_resource(DocumentNotification, '/notifications/<int:document_id>')
 
 
 if __name__ == '__main__':

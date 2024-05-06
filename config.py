@@ -26,6 +26,7 @@ CORS(app)
 app.secret_key = b'Y\xf1Xz\x00\xad|eQ\x80t \xca\x1a\x10K'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://sam:sam123@localhost:5432/postgres'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.json.compact = False
 app.config['JWT_SECRET_KEY'] = 'super-secret'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)

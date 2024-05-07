@@ -38,8 +38,8 @@ class FileUpload(Resource):
                 new_document = Document(
                     file_name=file_name,
                     file_type = file.content_type,
-                    document_category= 'test',
-                    patient_name= 'John Doe',
+                    document_category= request.form.get('document_category'),
+                    patient_name= request.form.get('patient_name'),
                     file_path=file_path
                 )
 
@@ -200,6 +200,89 @@ class DocumentNotification(Resource):
             'message': notification.message,
             'created_at': notification.created_at.strftime('%Y-%m-%d %H:%M:%S')
         } for notification in notifications]
+    
+
+class DocumentFetch(Resource):
+    def get(self, document_id):
+        document = Document.query.get(document_id)
+
+        if not document:
+            return {
+                'message': 'Document not found.'
+            }, 404
+        
+        return {
+            'message': 'Document retrieved successfully.',
+            'data': {
+                'id': document.id,
+                'file_name': document.file_name,
+                'document_category': document.document_category,
+                'patient_name': document.patient_name,
+                'file_type': document.file_type,
+                'file_path': document.file_path,
+                'created_at': document.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'updated_at': document.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        }, 200
+    
+class DocumentEdit(Resource):
+    def put(self, document_id):
+        files = request.files.getlist('document')
+
+        document = Document.query.get(document_id)
+        
+        if not document:
+            return {
+                'message': 'Document not found.',
+            }, 400
+        
+        
+        if files:
+            file = files[0]
+            file_name = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+            file.save(file_path)
+
+            document = Document.query.get(document_id)
+
+            if not document:
+                return {
+                    'message': 'Document not found.'
+                }, 404
+            
+            latest_version_number = db.session.query(db.func.max(Version.version_number)).filter_by(document_id=document_id).scalar() or 0
+            new_version = Version(
+                document_id=document_id,
+                version_number=latest_version_number + 1,
+                file_path=file_path
+            )
+            db.session.add(new_version)
+            db.session.flush()
+
+            document.file_path = file_path
+
+        else:
+            document_category = request.form.get('document_category', document.document_category)
+            patient_name = request.form.get('patient_name', document.patient_name)
+
+            document.document_category = document_category
+            document.patient_name = patient_name
+
+        db.session.commit()
+
+        return {
+            'message': 'Document updated successfully.',
+            'document_id': document.id,
+            'new_file_path': document.file_path,
+            'patient_name': document.patient_name
+        }, 200
+
+        
+    
+
+@app.route('/files/<path:filename>')
+def serve_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 api.add_resource(FileUpload, '/upload')
@@ -209,6 +292,8 @@ api.add_resource(DocumentDelete, '/delete/<int:document_id>')
 api.add_resource(VersionHistory, '/versions/<int:document_id>')
 api.add_resource(RevertDocument, '/revert/<int:document_id>/<int:version_number>')
 api.add_resource(DocumentNotification, '/notifications/<int:document_id>')
+api.add_resource(DocumentFetch, '/fetch/<int:document_id>')
+api.add_resource(DocumentEdit, '/edit/<int:document_id>')
 
 
 if __name__ == '__main__':

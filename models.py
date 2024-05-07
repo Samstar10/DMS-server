@@ -16,10 +16,13 @@ class Document(db.Model, SerializerMixin):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), server_onupdate=db.func.now())
 
-    versions = db.relationship('Version', backref='document', lazy=True)
+    versions = db.relationship('Version', backref='document', lazy=True, order_by='Version.version_number.desc()')
 
     def __repr__(self):
         return '<Document %r>' % self.file_name
+    
+    def get_latest_version(self):
+        return self.versions.first() if self.versions else None
     
 class Version(db.Model, SerializerMixin):
     __tablename__ = 'versions'
